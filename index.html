@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>学会使用 Grok Bot</title>
+  <meta name="description" content="一个简单的学习页，教你如何使用 Grok Bot：先摸底，再分步练习，最后测验。" />
+  <style>
+    :root {
+      --paper: #f6f5f1;
+      --ink: #1a1a1a;
+      --muted: #5c5a56;
+      --line: #e4e1d8;
+      --accent: #1f3a5f;
+      --good: #215c3a;
+      --warn: #8a4b12;
+      --soft: #eeece6;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      line-height: 1.7;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header, footer {
+      max-width: 40rem;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.1rem 1.25rem;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      border-bottom: 1px solid var(--line);
+    }
+    header .brand { font-weight: 600; letter-spacing: 0.02em; }
+    header button, .text-btn {
+      appearance: none;
+      border: 0;
+      background: none;
+      color: var(--muted);
+      font: inherit;
+      cursor: pointer;
+      padding: 0;
+    }
+    header button:hover, .text-btn:hover { color: var(--ink); }
+    main {
+      flex: 1;
+      max-width: 40rem;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2.2rem 1.25rem 3.5rem;
+    }
+    footer {
+      color: var(--muted);
+      font-size: 0.88rem;
+      border-top: 1px solid var(--line);
+    }
+    h1, h2 { font-weight: 650; line-height: 1.3; letter-spacing: -0.02em; }
+    h1 { font-size: clamp(1.8rem, 5vw, 2.35rem); margin: 0 0 1rem; }
+    h2 { font-size: 1.35rem; margin: 0 0 0.75rem; }
+    p { margin: 0 0 1rem; }
+    .muted { color: var(--muted); }
+    .step-label { color: var(--muted); font-size: 0.92rem; margin-bottom: 0.6rem; }
+    .stack { display: flex; flex-direction: column; gap: 0.75rem; }
+    textarea, input[type="text"] {
+      width: 100%;
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid #d8d4c8;
+      border-radius: 6px;
+      padding: 0.85rem 0.95rem;
+      resize: vertical;
+      min-height: 8rem;
+    }
+    textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .choices { display: flex; flex-direction: column; gap: 0.6rem; }
+    .choice {
+      display: flex;
+      gap: 0.7rem;
+      align-items: flex-start;
+      background: #fff;
+      border: 1px solid #d8d4c8;
+      border-radius: 6px;
+      padding: 0.8rem 0.9rem;
+      cursor: pointer;
+    }
+    .choice:has(input:checked) { border-color: var(--accent); background: #f3f5f8; }
+    .choice input { margin-top: 0.3rem; }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.4rem; }
+    button.primary, button.secondary {
+      appearance: none;
+      font: inherit;
+      border-radius: 6px;
+      padding: 0.7rem 1.15rem;
+      cursor: pointer;
+    }
+    button.primary {
+      background: var(--accent);
+      color: #fff;
+      border: 0;
+    }
+    button.primary:hover { background: #172c48; }
+    button.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.secondary {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid #cfcabb;
+    }
+    .feedback, .note, .ask {
+      border-radius: 6px;
+      padding: 1rem 1.05rem;
+      margin-top: 1.1rem;
+    }
+    .feedback { background: #fff; border: 1px solid var(--line); }
+    .feedback li { margin: 0.35rem 0; }
+    .feedback .ok { color: var(--good); }
+    .feedback .miss { color: var(--warn); }
+    .ask { background: var(--soft); }
+    .ask h3, .feedback h3 { font-size: 0.95rem; margin: 0 0 0.5rem; }
+    .path { list-style: none; padding: 0; margin: 1rem 0 0; }
+    .path li {
+      display: flex;
+      gap: 0.8rem;
+      padding: 0.65rem 0;
+      border-top: 1px solid var(--line);
+    }
+    .path .tag { color: var(--muted); min-width: 4.2rem; font-size: 0.88rem; }
+    .locked { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">学会使用 Grok Bot</div>
+    <button type="button" id="restartBtn" hidden>重新开始</button>
+  </header>
+  <main id="app"></main>
+  <footer>进度只保存在这台浏览器里，刷新不会丢失。</footer>
+  <script>
+  const KEY = "grokbot-learn-v2";
+
+  const diagnostic = [
+    {
+      id: "brief",
+      title: "如果你想让 Grok Bot 帮你改一份公司画册，你会怎么交代？",
+      hint: "直接写下你会发给它的话。",
+      type: "text",
+      check(text) {
+        const t = text.trim();
+        const hasResult = /结果|做成|改成|完成|方案|一版|定稿|排版|视觉/.test(t) || t.length >= 40;
+        const hasMaterial = /文件|图片|素材|PDF|pdf|链接|发给|附上|现有/.test(t);
+        const hasConstraint = /不要|不要改|保持|风格|之前|确认|不要直接/.test(t);
+        const tooShort = t.length < 12 || /^(帮我改画册|改一下|看看|优化一下)[。.!！]?$/.test(t);
+        return [
+          { ok: !tooShort && hasResult, okText: "有说出要做成什么样。", missText: "还要写得更具体：你希望最后做成什么样。" },
+          { ok: hasMaterial, okText: "提到了材料或文件。", missText: "可以补上：你会提供哪些文件或图片。" },
+          { ok: hasConstraint, okText: "有说到限制或标准。", missText: "最好补一句不要做什么，或怎样算完成。" }
+        ];
+      }
+    },
+    {
+      id: "computer",
+      title: "Grok Bot 使用的电脑，和你自己的电脑，是同一台吗？",
+      type: "choice",
+      options: [
+        { id: "same", label: "是同一台，它可以直接改我电脑里的文件。" },
+        { id: "diff", label: "不是同一台。我需要把文件发给它，做好的文件再从对话里取回。" },
+        { id: "unsure", label: "我不确定。" }
+      ],
+      check(id) {
+        return [
+          { ok: id === "diff", okText: "判断是对的：两台电脑不是同一台。", missText: "它们不是同一台。你要先把文件发给它，做好的东西会回到对话里，而不是直接出现在你的桌面。" }
+        ];
+      }
+    },
+    {
+      id: "skill",
+      title: "Skill（可复用的做事方法）要怎么用？",
+      type: "choice",
+      options: [
+        { id: "manual", label: "每次都要我先点名，它才会用。" },
+        { id: "auto", label: "任务合适时会自动用，我不必每次点名。" },
+        { id: "unsure", label: "我不确定。" }
+      ],
+      check(id) {
+        return [
+          { ok: id === "auto", okText: "对，合适的任务会自动用到相应方法。", missText: "不必每次点名。任务匹配到适用场景时，它会自动使用；你把事情说清楚，比背清单更重要。" }
+        ];
+      }
+    },
+    {
+      id: "gap",
+      title: "你现在用 Grok Bot 时，最没把握的是哪一步？",
+      hint: "没有标准答案，写你真实的感觉即可。",
+      type: "text",
+      check() {
+        return [{ ok: true, okText: "已记下。后面的练习会从你还不熟的地方开始。", missText: "" }];
+      }
+    }
+  ];
+
+  const lessons = [
+    {
+      id: "model",
+      name: "先说要做成什么",
+      why: "先建立正确用法：交给它的是一件要完成的事，不是随口问一句。",
+      read: "Grok Bot 不是只用来问答的对话框，而是一个能帮你办事的助手，并且有自己的电脑。你最好直接说：希望最后得到什么，而不是先问“你能做什么”。",
+      prompt: "请把“Grok Bot 能做什么？”改写成一个你会真正交给它的任务。",
+      questions: [
+        "这件事怎样才算做完？",
+        "哪些材料需要我先提供？",
+        "如果我只是想想，还没决定做，该怎么说，免得它直接做下去？"
+      ],
+      check(text) {
+        const t = text.trim();
+        const isList = /能做什么|有哪些功能|介绍一下|你是谁/.test(t);
+        const hasTask = t.length >= 15 && !isList;
+        return [
+          { ok: hasTask, okText: "这已经是一个具体任务。", missText: "请改成一件具体要做的事，例如“根据我发的文件，做一页文化墙方案”，而不是问它有哪些功能。" }
+        ];
+      }
+    },
+    {
+      id: "instruct",
+      name: "把指令说完整",
+      why: "指令越清楚，它越少靠猜测。",
+      read: "一条比较完整的指令，通常包括四件事：要的结果、材料（文件或链接）、约束（不要做什么、风格、范围）、怎样算完成。",
+      prompt: "请把这句含糊的话改写成完整指令：“帮我优化一下作品集网站”。",
+      questions: [
+        "你还缺哪项信息，缺了会猜错？",
+        "有两个都合理的做法时，你会默认选哪个？",
+        "哪些步骤要先给我看，不能直接改掉或发出去？"
+      ],
+      check(text) {
+        const t = text.trim();
+        return [
+          { ok: /作品集|网站|改成|做成|方案|首页|案例/.test(t) && t.length >= 20, okText: "有说到要的结果。", missText: "先写清你希望得到什么，比如一版改版方案，还是直接改页面。" },
+          { ok: /链接|网址|文件|现有|参考/.test(t), okText: "有提到材料。", missText: "补上现有网站或参考链接，或说明你会发给它。" },
+          { ok: /不要|保持|确认|风格|之前|先给/.test(t), okText: "有约束或完成标准。", missText: "加一句限制，例如确认之前不要改线上网站。" }
+        ];
+      }
+    },
+    {
+      id: "files",
+      name: "文件怎么给，成品从哪拿",
+      why: "两台电脑不是同一台，传文件的方式要先弄清。",
+      read: "Grok Bot 的电脑和你的电脑不是同一台。你需要把文件发给它，它才能用。它做好的文件会回到对话里，必要时再拷到你的电脑。不要假设它能直接改你桌面上还没发给它的文件。",
+      prompt: "情景：你电脑桌面上有一份 PDF，想让它根据这份文件做一页文化墙。第一步你该怎么做？做好后，文件在哪里？",
+      questions: [
+        "你能不能直接读我电脑上的某个文件夹？如果不能，我该怎么给你？",
+        "做好的是图片、PDF 还是源文件？我该要哪一种？",
+        "如果原文件不能被改动，怎样保证只改我指定的部分？"
+      ],
+      check(text) {
+        const t = text.trim();
+        return [
+          { ok: /发|上传|拖|发给|传给|附上/.test(t), okText: "提到了先把文件发给它。", missText: "第一步应是把桌面上的 PDF 发给它（上传或拖进对话）。" },
+          { ok: /对话|聊天|这里|取回|发回|下载/.test(t), okText: "知道成品要在对话里取回。", missText: "做好的文件会出现在对话里，不会自动跑到你的桌面。" }
+        ];
+      }
+    },
+    {
+      id: "tools",
+      name: "已连接的工具，直接说要做什么",
+      why: "工具连上之后，不必先问“你支持吗”。",
+      read: "如果已经连接了 Gmail、Notion、Figma 或 GitHub，你可以直接说要查什么或改什么。每个人连了哪些工具可能不同。注意：对外发邮件或消息，应先让你看到草稿；删除、花钱、发出去之前，要先确认。",
+      prompt: "下面四件事，请分别判断：可以直接做、要先给你看或先确认、还是要先连接。并各写一句理由。\n1）查阅一个已连接的 Notion 页面\n2）写一封邮件并发出去\n3）删除一批邮件\n4）在一个还没连接的新服务上下单",
+      questions: [
+        "这件事你会不会直接发出去？我想先看到草稿。",
+        "我现在连了哪些工具？缺的那个怎么连？",
+        "你是用我的账号做的，还是只用公开信息？"
+      ],
+      check(text) {
+        const t = text.trim();
+        return [
+          { ok: /notion|直接/.test(t.toLowerCase()) && /查阅|查看|读取|可以/.test(t), okText: "查阅已连接的 Notion，可以直接交代。", missText: "已连接的 Notion 可以直接让它去看，不必先问支不支持。" },
+          { ok: /草稿|确认|先看|不要直接发|先给我/.test(t), okText: "发出去之前要先给你看或确认。", missText: "写邮件可以先起草，但发出去之前应先给你确认。" },
+          { ok: /删除|花钱|下单|连接/.test(t) && /确认|先/.test(t), okText: "删除、花钱或未连接的服务，不会当成可以直接做的事。", missText: "删除和花钱要先确认；还没连接的服务，要先连接，不能直接下单。" }
+        ];
+      }
+    },
+    {
+      id: "skills",
+      name: "Skill 会自动匹配",
+      why: "不用背清单，但要能判断这是哪类任务。",
+      read: "Skill 是可复用的做事方法。任务合适时会自动使用，你不必每次点名，也不必背完整清单。把任务类型说清楚，它更容易用对方法，比如拆解网站、阅读长文、或把功能做成页面。",
+      prompt: "下面三个任务，请判断各自更依赖哪类方法，并写一句理由。\n1）拆解一个参考网站的设计\n2）读一篇长文并整理你的判断\n3）把一个已确定的功能做成可运行的页面",
+      questions: [
+        "这个任务你会按什么步骤来做？有没有现成方法？",
+        "如果我想以后重复同一类任务，应该把什么沉淀下来？",
+        "我需要自己先指定方法，还是你匹配后直接用？"
+      ],
+      check(text) {
+        const t = text.trim();
+        const a = /拆解|设计|网站/.test(t);
+        const b = /阅读|长文|整理|判断/.test(t);
+        const c = /页面|做成|实现|代码|功能/.test(t);
+        const notManual = !/每次点名|必须先点名|先列出全部/.test(t);
+        return [
+          { ok: a && b && c, okText: "三类任务都有按类型来判断。", missText: "请分别写清：设计拆解、阅读整理、做成可运行页面，各是不同类型的做法。" },
+          { ok: notManual, okText: "没有把它理解成必须先点名。", missText: "不需要先点名或背清单，把任务说清楚即可。" }
+        ];
+      }
+    },
+    {
+      id: "team",
+      name: "什么时候找其他助手",
+      why: "能在这里做完的，就不必转交。",
+      read: "能自己完成的事，直接在 Grok Bot 这里做就好，不必为了分工而分工。其他助手只在确实更合适时再请：Prism 帮你想清楚和做判断；Research 负责查资料和核对；Studio 做视觉和作品集表达；Frame 拆解网站设计；Forge 把已确定的方案做成可运行的代码结果。",
+      prompt: "下面四件事，请判断该留在 Grok Bot，还是该找哪一个助手，并写理由。\n1）把一个还很模糊的想法想清楚\n2）查一组资料并核对真伪\n3）做一张视觉稿\n4）把一句已经想清楚的话翻译成英文标题",
+      questions: [
+        "这件事你自己能不能做完？如果能，就不要转交。",
+        "如果请其他助手，我需要先提供什么，避免他们从头猜？",
+        "什么时候该一起讨论，什么时候不必开会？"
+      ],
+      check(text) {
+        const t = text.trim();
+        return [
+          { ok: /prism|想清楚|判断/.test(t.toLowerCase()), okText: "模糊想法适合先想清楚（Prism）。", missText: "还很模糊的想法，更适合先找 Prism 想清楚，而不是直接去做。" },
+          { ok: /research|资料|核对/.test(t.toLowerCase()), okText: "查核资料适合 Research。", missText: "查资料并核对，更适合 Research。" },
+          { ok: /studio|视觉/.test(t.toLowerCase()), okText: "视觉稿适合 Studio。", missText: "做视觉稿更适合 Studio。" },
+          { ok: /翻译|留在|这里|grok/.test(t.toLowerCase()), okText: "简单翻译可以留在这里做。", missText: "把一句想清楚的话译成英文标题，Grok Bot 自己就能做，不必转交。" }
+        ];
+      }
+    },
+    {
+      id: "routine",
+      name: "重复的事可以做成定时任务",
+      why: "只说“以后记得”不够，要说出时间和交付方式。",
+      read: "如果一件事需要每天、每周重复，或“当某事发生时告诉我”，就把它写成定时或触发任务：要做什么、多久一次或什么条件下开始、结果送到哪里。没有变化时，也可以说不用通知。",
+      prompt: "请把“以后记得帮我看看有没有新的设计工作机会”改写成一条可执行的定时说明。",
+      questions: [
+        "没有变化的时候，还要不要通知我？",
+        "是必须在整点，还是在一个时间范围内完成即可？",
+        "如果以后想改频率或停掉，该怎么说？"
+      ],
+      check(text) {
+        const t = text.trim();
+        return [
+          { ok: /每天|每周|每周一|每天早|几点|定时|当|如果有/.test(t), okText: "有频率或触发条件。", missText: "请写清多久看一次，例如每周一上午汇总一次。" },
+          { ok: /设计|工作|机会|职位/.test(t), okText: "有要做的事。", missText: "写清要查看的是什么，比如新的设计相关职位。" },
+          { ok: /汇总|发给|告诉|如果没有|不用|没有变化/.test(t), okText: "有说到怎么交付，或没有更新时怎么办。", missText: "补一句结果怎么给你，以及没有新机会时要不要打扰。" }
+        ];
+      }
+    }
+  ];
+
+  const exam = {
+    name: "最后测一次",
+    scene: "你下周一要交一版个人作品集网站的修改方案。你已经有现有网站链接，也收集了三个参考网站。你希望 Grok Bot 先看现有站和参考站，提出改版方向。在你确认之前，不要直接改线上网站，也不要对外发邮件。",
+    parts: [
+      {
+        id: "write",
+        title: "写出你会发给 Grok Bot 的完整指令。",
+        check(text) {
+          const t = text.trim();
+          return [
+            { ok: /作品集|改版|方案|方向/.test(t) && t.length >= 20, okText: "有说出要的结果。", missText: "指令里要写清：先提出改版方向或方案。" },
+            { ok: /现有|链接|参考/.test(t), okText: "有提供现有站或参考站。", missText: "把现有网站和三个参考网站写进去，或说明你会发链接。" },
+            { ok: /不要|确认|线上|发邮件|邮件/.test(t), okText: "有写上关键限制。", missText: "加上：确认之前不要改线上网站，也不要对外发邮件。" }
+          ];
+        }
+      },
+      {
+        id: "steps",
+        title: "预判它大概会按什么步骤做。",
+        check(text) {
+          const t = text.trim();
+          const looksThenDirects = /先看|先了解|先打开/.test(t) && /方向|方案|建议|再/.test(t);
+          const waits = /确认|等你|同意|之后再改/.test(t);
+          return [
+            { ok: looksThenDirects, okText: "步骤是先看，再给方向。", missText: "比较合理的顺序是：先看现有站和参考站，再提出方向，而不是直接改。" },
+            { ok: waits, okText: "会等到你确认后再改。", missText: "预判里应写明：你确认之后才进入修改。" }
+          ];
+        }
+      },
+      {
+        id: "risk",
+        title: "哪些事必须先确认才能做？哪些可以先做？",
+        check(text) {
+          const t = text.trim();
+          return [
+            { ok: /改线上|发邮件|发出|删除|花钱/.test(t) && /确认/.test(t), okText: "标出了必须先确认的事。", missText: "改线上、对外发邮件这类事必须先确认。" },
+            { ok: /先看|查看|参考|方案|方向/.test(t), okText: "知道查看和提出方案可以先做。", missText: "查看网站、提出改版方向，可以先做。" }
+          ];
+        }
+      }
+    ]
+  };
+
+  const state = load() || {
+    stage: "intro",
+    diagIndex: 0,
+    diagAnswers: {},
+    diagResults: {},
+    lessonIndex: 0,
+    skipped: [],
+    lessonAnswers: {},
+    lessonPassed: [],
+    examIndex: 0,
+    examAnswers: {},
+    examResults: {}
+  };
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY) || "null"); }
+    catch { return null; }
+  }
+  function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
+  function reset() { localStorage.removeItem(KEY); location.reload(); }
+
+  function passedItems(items) { return items.every(i => i.ok); }
+  function missedLessons() {
+    const skip = new Set();
+    if (state.diagResults.brief && passedItems(state.diagResults.brief)) skip.add("instruct");
+    if (state.diagResults.computer && passedItems(state.diagResults.computer)) skip.add("files");
+    if (state.diagResults.skill && passedItems(state.diagResults.skill)) skip.add("skills");
+    return lessons.map((l, i) => ({ ...l, i, skipped: skip.has(l.id) && !state.lessonPassed.includes(l.id) }));
+  }
+  function nextLessonIndex(from) {
+    const list = missedLessons();
+    for (let i = from; i < list.length; i++) {
+      if (!list[i].skipped || state.lessonPassed.includes(list[i].id)) {
+        if (!list[i].skipped) return i;
+        if (!state.lessonPassed.includes(list[i].id) && !list[i].skipped) return i;
+      }
+      if (!list[i].skipped) return i;
+    }
+    return -1;
+  }
+
+  function el(html) {
+    const box = document.createElement("div");
+    box.innerHTML = html.trim();
+    return box.firstElementChild;
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+  }
+
+  function renderFeedback(items) {
+    const lis = items.map(i => `<li class="${i.ok ? "ok" : "miss"}">${escapeHtml(i.ok ? i.okText : i.missText)}</li>`).join("");
+    const all = passedItems(items);
+    return `<div class="feedback"><h3>${all ? "可以进入下一步" : "还差一点，按下面的提示改一改"}</h3><ul>${lis}</ul></div>`;
+  }
+  function renderQuestions(qs) {
+    return `<div class="ask"><h3>这时你可以问的问题</h3><ul>${qs.map(q => `<li>${escapeHtml(q)}</li>`).join("")}</ul></div>`;
+  }
+
+  function render() {
+    const app = document.getElementById("app");
+    const restart = document.getElementById("restartBtn");
+    restart.hidden = state.stage === "intro";
+    app.innerHTML = "";
+
+    if (state.stage === "intro") {
+      app.append(el(`
+        <article>
+          <p class="step-label">学习页</p>
+          <h1>学会使用 Grok Bot</h1>
+          <p>这是一个学习网页，专门教你怎么把事情交代给 Grok Bot，让它真正帮你把事做完。</p>
+          <p>你先回答 4 个简单问题，看看已经会什么。然后一步一步练习：先看一段短说明，再自己写一写，提交后才会看到反馈。全部练习完，会有一道综合测验。</p>
+          <div class="actions"><button class="primary" id="startBtn">开始</button></div>
+        </article>
+      `));
+      app.querySelector("#startBtn").onclick = () => { state.stage = "diag"; save(); render(); };
+      return;
+    }
+
+    if (state.stage === "diag") {
+      const q = diagnostic[state.diagIndex];
+      const n = state.diagIndex + 1;
+      const prev = state.diagAnswers[q.id] || "";
+      const shown = state.diagResults[q.id];
+      const article = el(`<article>
+        <p class="step-label">摸底 ${n} / ${diagnostic.length}</p>
+        <h2>${escapeHtml(q.title)}</h2>
+        ${q.hint ? `<p class="muted">${escapeHtml(q.hint)}</p>` : ""}
+        <div id="qbox"></div>
+        <div class="actions">
+          <button class="primary" id="submitBtn">提交</button>
+        </div>
+        <div id="after"></div>
+      </article>`);
+      const qbox = article.querySelector("#qbox");
+      if (q.type === "text") {
+        qbox.innerHTML = `<textarea id="ans" placeholder="在这里写">${escapeHtml(typeof prev === "string" ? prev : "")}</textarea>`;
+      } else {
+        qbox.innerHTML = `<div class="choices">${q.options.map(o => `
+          <label class="choice"><input type="radio" name="ans" value="${o.id}" ${prev===o.id?"checked":""} /><span>${escapeHtml(o.label)}</span></label>
+        `).join("")}</div>`;
+      }
+      article.querySelector("#submitBtn").onclick = () => {
+        let value = "";
+        if (q.type === "text") value = article.querySelector("#ans").value.trim();
+        else {
+          const picked = article.querySelector("input[name=ans]:checked");
+          if (!picked) return;
+          value = picked.value;
+        }
+        if (q.type === "text" && !value) return;
+        state.diagAnswers[q.id] = value;
+        state.diagResults[q.id] = q.check(value);
+        save();
+        render();
+      };
+      if (shown) {
+        article.querySelector("#after").innerHTML = renderFeedback(shown) + `
+          <div class="actions"><button class="primary" id="nextBtn">${state.diagIndex < diagnostic.length-1 ? "下一题" : "查看学习路径"}</button></div>`;
+        article.querySelector("#submitBtn").textContent = "再改一次";
+        article.querySelector("#nextBtn").onclick = () => {
+          if (state.diagIndex < diagnostic.length-1) state.diagIndex += 1;
+          else state.stage = "path";
+          save(); render();
+        };
+      }
+      app.append(article);
+      return;
+    }
+
+    if (state.stage === "path") {
+      const list = missedLessons();
+      const rows = list.map(l => {
+        const tag = l.skipped ? "可跳过" : "需要学";
+        return `<li><span class="tag">${tag}</span><span>${escapeHtml(l.name)}</span></li>`;
+      }).join("");
+      app.append(el(`
+        <article>
+          <p class="step-label">学习路径</p>
+          <h1>接下来按这个顺序学</h1>
+          <p>摸底里已经写清楚的部分可以跳过，你也可以点开复习。每一步都是先看说明，再自己写，提交后才看反馈。</p>
+          <ul class="path">${rows}</ul>
+          <div class="actions"><button class="primary" id="goBtn">开始学习</button></div>
+        </article>
+      `));
+      const first = list.findIndex(l => !l.skipped);
+      app.querySelector("#goBtn").onclick = () => {
+        state.lessonIndex = first === -1 ? 0 : first;
+        state.stage = "lesson";
+        save(); render();
+      };
+      return;
+    }
+
+    if (state.stage === "lesson") {
+      const list = missedLessons();
+      let idx = state.lessonIndex;
+      if (idx < 0 || idx >= lessons.length) { state.stage = "exam"; save(); render(); return; }
+      // if current skipped and not started, jump
+      if (list[idx].skipped && !state.lessonAnswers[lessons[idx].id]) {
+        const nxt = list.findIndex((l, i) => i > idx && !l.skipped);
+        if (nxt === -1) { state.stage = "exam"; save(); render(); return; }
+        state.lessonIndex = nxt;
+        idx = nxt;
+      }
+      const lesson = lessons[idx];
+      const needed = list.filter(l => !l.skipped).map(l => l.id);
+      const pos = Math.max(1, needed.indexOf(lesson.id) + 1);
+      const total = needed.length || lessons.length;
+      const answer = state.lessonAnswers[lesson.id] || "";
+      const result = state.lessonAnswers[lesson.id + ":result"];
+      const article = el(`<article>
+        <p class="step-label">第 ${pos} 步，共 ${total} 步 · ${escapeHtml(lesson.why)}</p>
+        <h1>${escapeHtml(lesson.name)}</h1>
+        <p>${escapeHtml(lesson.read)}</p>
+        <p><strong>${escapeHtml(lesson.prompt)}</strong></p>
+        <textarea id="ans" placeholder="先自己写，再提交">${escapeHtml(answer)}</textarea>
+        <div class="actions"><button class="primary" id="submitBtn">提交</button></div>
+        <div id="after"></div>
+      </article>`);
+      article.querySelector("#submitBtn").onclick = () => {
+        const value = article.querySelector("#ans").value.trim();
+        if (!value) return;
+        const items = lesson.check(value);
+        state.lessonAnswers[lesson.id] = value;
+        state.lessonAnswers[lesson.id + ":result"] = items;
+        if (passedItems(items) && !state.lessonPassed.includes(lesson.id)) state.lessonPassed.push(lesson.id);
+        save(); render();
+      };
+      if (result) {
+        const all = passedItems(result);
+        let extra = renderFeedback(result) + renderQuestions(lesson.questions);
+        if (all) {
+          extra += `<div class="actions"><button class="primary" id="nextBtn">下一步</button></div>`;
+        } else {
+          extra += `<p class="muted">改完后再提交一次。过关后才能继续。</p>`;
+          article.querySelector("#submitBtn").textContent = "再交一次";
+        }
+        article.querySelector("#after").innerHTML = extra;
+        const next = article.querySelector("#nextBtn");
+        if (next) next.onclick = () => {
+          const nxt = list.findIndex((l, i) => i > idx && !l.skipped);
+          if (nxt === -1) state.stage = "exam";
+          else state.lessonIndex = nxt;
+          save(); render();
+        };
+      }
+      app.append(article);
+      return;
+    }
+
+    if (state.stage === "exam") {
+      const part = exam.parts[state.examIndex];
+      const answer = state.examAnswers[part.id] || "";
+      const result = state.examResults[part.id];
+      const article = el(`<article>
+        <p class="step-label">测验 ${state.examIndex + 1} / ${exam.parts.length}</p>
+        <h1>${escapeHtml(exam.name)}</h1>
+        <p>${escapeHtml(exam.scene)}</p>
+        <p><strong>${escapeHtml(part.title)}</strong></p>
+        <textarea id="ans" placeholder="先写你的答案">${escapeHtml(answer)}</textarea>
+        <div class="actions"><button class="primary" id="submitBtn">提交</button></div>
+        <div id="after"></div>
+      </article>`);
+      article.querySelector("#submitBtn").onclick = () => {
+        const value = article.querySelector("#ans").value.trim();
+        if (!value) return;
+        state.examAnswers[part.id] = value;
+        state.examResults[part.id] = part.check(value);
+        save(); render();
+      };
+      if (result) {
+        const all = passedItems(result);
+        let extra = renderFeedback(result);
+        if (all) extra += `<div class="actions"><button class="primary" id="nextBtn">${state.examIndex < exam.parts.length-1 ? "下一问" : "查看结果"}</button></div>`;
+        else {
+          extra += `<p class="muted">按提示改完再提交。这几问过关，才算学完。</p>`;
+          article.querySelector("#submitBtn").textContent = "再交一次";
+        }
+        article.querySelector("#after").innerHTML = extra;
+        const next = article.querySelector("#nextBtn");
+        if (next) next.onclick = () => {
+          if (state.examIndex < exam.parts.length-1) state.examIndex += 1;
+          else state.stage = "done";
+          save(); render();
+        };
+      }
+      app.append(article);
+      return;
+    }
+
+    if (state.stage === "done") {
+      app.append(el(`
+        <article>
+          <p class="step-label">学完了</p>
+          <h1>你现在可以自己把一件事交代清楚了</h1>
+          <p>你已经练过：先说要做成什么，把指令写完整，知道文件怎么给，并分清哪些事可以直接做、哪些要先确认，以及何时找其他助手、如何把重复的事写成定时任务。</p>
+          <p>下次直接把一件真实的事交给 Grok Bot 即可。如果中途卡住，就回到这一页，从对应的那一步再练一次。</p>
+          <div class="actions"><button class="secondary" id="againBtn">重新开始</button></div>
+        </article>
+      `));
+      app.querySelector("#againBtn").onclick = reset;
+    }
+  }
+
+  document.getElementById("restartBtn").onclick = () => {
+    if (confirm("确定要清空进度并从头开始吗？")) reset();
+  };
+  render();
+  </script>
+</body>
+</html>
